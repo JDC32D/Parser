@@ -5,16 +5,23 @@
 #include <cstdio>
 
 class Scanner {
-        int line;
-        std::string buffer;
-        std::FILE* file;
-        int filter();
+    int line;
+    std::string buffer;
+    std::FILE* file;
+    int filter();
 public:
-        Scanner(std::FILE * fp){
-                this->file = fp;
-                this->line = 0;
-        }
-        Token::Token getToken();
+	Scanner() {
+		this->file = nullptr;
+		this->line = 0;
+	}
+    Scanner(std::FILE * fp) {
+        this->file = fp;
+        this->line = 0;
+    }
+    void GetFile(std::FILE* fp) {
+    	this->file=fp;
+    }
+    Token::Token getToken();
 };
 
 #endif
