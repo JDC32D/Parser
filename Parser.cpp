@@ -55,163 +55,194 @@
 const bool DEBUG = 1;
 
 void Parser::error(std::string msg){
-	std::printf("%s\n", msg.c_str());
+	std::printf("%s\nToken: ", msg.c_str());
+	PrintToken();
 	return;
 }
 
-// /*
 // <vars> -> empty | var Identifier : Integer <vars>
-// */
-// void Parser::Vars(Token::Token tk){
+void Parser::Vars(){
+	if(DEBUG)
+		std::printf("-->Vars\n");
 
-// 	if(tk.id == Token::varTk) { 
-// 		tk = scanner.getToken();
+	if(this->tk.id == Token::varTk) { 
+		this->GetToken();
 
-// 		if(tk.id == Token::identifierTk) {
-// 			tk = scanner.getToken();
+		if(this->tk.id == Token::identifierTk) {
+			this->GetToken();
 
-// 			if(tk.id == Token::colonTk) {
-// 				tk = scanner.getToken();
+			if(this->tk.id == Token::colonTk) {
+				this->GetToken();
 
-// 				if(tk.id == Token::intTk) {
-// 					tk = scanner.getToken();
-// 					Vars(tk);
-// 					return;
-// 				}
-// 				else {
-// 					error("Vars: Expected intTk");
-// 					return;
-// 				}
-// 			}
-// 			else {
-// 				error("Vars: Expected colonTk");
-// 				return;
-// 			}
-// 		}
-// 		else {
-// 			error("Vars: Expected identifierTk");
-// 			return;
-// 		}
-// 	}
-// 	else {
-// 		error("Vars: Expected varTk"); 
-// 		return;
-// 	}
-// }
+				if(this->tk.id == Token::integerTk) {
+					this->GetToken();
+					Vars();
+					if(DEBUG){ std::printf("Vars-->\n"); }
+					return;
+				}
+				else {
+					error("Vars: Expected intTk");
+					return;
+				}
+			}
+			else {
+				error("Vars: Expected colonTk");
+				return;
+			}
+		}
+		else {
+			error("Vars: Expected identifierTk");
+			return;
+		}
+	}
+	if(DEBUG){ std::printf("Vars-->\n"); }
+	return;
+}
 
-// /*
+
 // <in> -> scan Identifier
-// */
-// void Parser::In(Token::Token tk) {
+void Parser::In() {
+	if(DEBUG)
+		std::printf("-->In\n");
 
-// 	if(tk.id == Token::scanTk){
+	if(this->tk.id == Token::scanTk){
 
-// 		tk = scanner.getToken();
+		this->GetToken();
 
-// 		if(tk.id == Token::identifierTk){
-// 			tk = scanner.getToken();
-// 			return;
-// 		}
+		if(this->tk.id == Token::identifierTk){
+			this->GetToken();
+			if(DEBUG){ std::printf("In-->\n"); }
+			return;
+		}
 
-// 		else{
-// 			error("In: Expected identifierTk");
-// 			return;
-// 		}
+		else{
+			error("In: Expected identifierTk");
+			return;
+		}
 
-// 	}
-// 	else{
-// 		error("In: Expected scanTk");
-// 		return;
-// 	}
-// }
+	}
+	else{
+		error("In: Expected scanTk");
+		return;
+	}
+}
 
-// // <R>	->	( <expr> ) | Identifier | Integer
-// void Parser::R(Token::Token tk) {
+// <R>	->	( <expr> ) | Identifier | Integer
+void Parser::R() {
+	if(DEBUG)
+		std::printf("-->R\n");
 
-// 	if(tk.id == Token::lparenTk) {
+	if(this->tk.id == Token::lparenTk) {
 
-// 		tk = scanner.getToken();
-// 		Expr(tk);
+		this->GetToken();
+		Expr();
 
-// 		if(tk.id == Token::rparenTk) {
-// 			tk = scanner.getToken();
-// 			return;
-// 		}
+		if(this->tk.id == Token::rparenTk) {
+			this->GetToken();
+			if(DEBUG){ std::printf("R-->\n"); }
+			return;
+		}
 
-// 	}
+	}
 
-// 	if(tk.id == Token::identifierTk) {
-// 		tk = scanner.getToken();
-// 		return;
-// 	}
+	if(this->tk.id == Token::identifierTk) {
+		this->GetToken();
+		if(DEBUG){ std::printf("R-->\n"); }
+		return;
+	}
 
-// 	if(tk.id == Token::intTk) {
-// 		tk = scanner.getToken();
-// 		return;
-// 	}
+	if(this->tk.id == Token::integerTk) {
+		this->GetToken();
+		if(DEBUG){ std::printf("R-->\n"); }
+		return;
+	}
 
-// }
+	else {
+		error("R: Expected (, identifier, integer");
+		return;
+	}
 
-// // <M>	->	% <M> |  <R>
-// void Parser::M(Token::Token tk) {
+}
 
-// 	if(tk.id == Token::modTk) {
-// 		tk = scanner.getToken();
-// 		M(tk);
-// 		return;
-// 	}
+// <M>	->	% <M> |  <R>
+void Parser::M() {
+	if(DEBUG)
+		std::printf("-->M\n");
 
-// 	if(tk.id == Token::lparenTk) {
-// 		R(tk);
-// 		return;
-// 	}
+	if(this->tk.id == Token::modTk) {
+		this->GetToken();
+		M();
+		if(DEBUG){ std::printf("M-->\n"); }
+		return;
+	}
 
-// 	else {
-// 		error("M: Expected ( or %");
-// 		return;
-// 	}
+	if(this->tk.id == Token::lparenTk ||
+		this->tk.id == Token::identifierTk ||
+		this->tk.id == Token::integerTk) {
 
-// }
+		R();
+		if(DEBUG){ std::printf("M-->\n"); }
+		return;
+	}
 
-// // <N>	->	<M> * <N> | <M>
-// void Parser::N(Token::Token tk) {
+	else {
+		error("M: Expected ( or %");
+		return;
+	}
 
-// 	if(tk.id == Token::modTk) {
+}
 
-// 		M(tk);
+// <N>	->	<M> * <N> | <M>
+void Parser::N() {
+	if(DEBUG)
+		std::printf("-->N\n");
 
-// 		if(tk.id == Token::multTk) {
-// 			tk = scanner.getToken();
-// 			N(tk);
-// 			return;
-// 		}
+	if(this->tk.id == Token::modTk ||
+		this->tk.id == Token::lparenTk ||
+		this->tk.id == Token::identifierTk ||
+		this->tk.id == Token::integerTk) {
 
-// 		return;
-// 	}
+		M();
 
-// 	else {
-// 		error("N: Expected %");
-// 		return;
-// 	}
-// }
+		if(this->tk.id == Token::multTk) {
+			this->GetToken();
+			N();
+			if(DEBUG){ std::printf("N-->\n"); }
+			return;
+		}
+		if(DEBUG){ std::printf("N-->\n"); }
+		return;
+	}
 
-// // <A>	->	<N> / <A> | <N>
-// void Parser::A(Token::Token tk) {
+	else {
+		error("N: Expected %");
+		return;
+	}
+}
 
-// 	if(tk.id == Token::modTk){
+// <A>	->	<N> / <A> | <N>
+void Parser::A() {
+	if(DEBUG)
+		std::printf("-->A\n");
 
-// 		N(tk);
+	if(this->tk.id == Token::modTk ||
+		this->tk.id == Token::lparenTk ||
+		this->tk.id == Token::identifierTk ||
+		this->tk.id == Token::integerTk){
 
-// 		if(tk.id == Token::bslashTk) {
-// 			tk = scanner.getToken();
-// 			A(tk);
-// 			return;
-// 		}
+		N();
 
-// 		return;
-// 	}
+		if(this->tk.id == Token::bslashTk) {
+			this->GetToken();
+			A();
+			if(DEBUG){ std::printf("A-->\n"); }
+			return;
+		}
+		if(DEBUG){ std::printf("A-->\n"); }
+		return;
+	} 
 
-// }
+}
 
 // <expr>	->	<A> + <expr> | <A> - <expr> | <A>
 // <A>		->	<N> / <A> | <N>
@@ -219,255 +250,355 @@ void Parser::error(std::string msg){
 // <M>		->	% <M> |  <R>
 // <R>		->	( <expr> ) | Identifier | Integer
 
-// void Parser::Expr(Token::Token tk) {
+void Parser::Expr() {
+	if(DEBUG)
+		std::printf("-->Expr\n");
 
-// 	if(tk.id == (Token::modTk | Token::lparenTk | Token::identifierTk | Token::intTk )) {
-		
-// 		A(tk);
-		
-// 		if(tk.id == (Token::plusTk | Token::minusTk)) {
-			
-// 			tk = scanner.getToken();
-// 			Expr(tk);
-// 			return;
-		
-// 		}
+	//if(this->tk.id == (Token::modTk || Token::lparenTk || Token::identifierTk || Token::intTk )) {
+	switch(this->tk.id){
+		case(Token::modTk):
+		case(Token::lparenTk):
+		case(Token::identifierTk):
+		case(Token::integerTk):
+			A();
+			if(this->tk.id == Token::plusTk || this->tk.id == Token::minusTk) {
+				this->GetToken();
+				Expr();
+				if(DEBUG){ std::printf("Expr-->\n"); }
+				return;
+			}
+			return;
+		default:
+			error("Expr: Expected %,(,ident,int");
+			return;
+	}
+	if(DEBUG){ std::printf("Expr-->\n"); }
+	return;
+}
 
-// 		return;
-// 	}
+// <out> ->  print <expr>
+void Parser::Out() {
+	if(DEBUG)
+		std::printf("-->Out\n");
 
-// 	else {
-// 		error("Expr: Expected %,(,ident,int");
-// 		return;
-// 	}
-// }
+	if(this->tk.id == Token::printTk){
+		this->GetToken();
+		Expr();
+		if(DEBUG){ std::printf("Out-->\n"); }
+		return;
+	}
+	else {
+		error("Out: Expected printTk");
+		return;
+	}
 
-// // <out> ->  print <expr>
-// void Parser::Out(Token::Token tk) {
+}
 
-// 	if(tk.id == printTk){
-// 		tk = scanner.getToken();
-// 		Expr(tk);
-// 		return;
-// 	}
-// 	else {
-// 		error("Out: Expected printTk");
-// 		return;
-// 	}
+//<RO>	->	< | = < | > | = > | < > | =  
+void Parser::RO() {
+	if(DEBUG)
+		std::printf("-->RO\n");
 
-// }
+	// < | < >
+	if(this->tk.id == Token::lessTk){
+		this->GetToken();
+		if(this->tk.id == Token::greaterTk){
+			this->GetToken();
+			if(DEBUG){ std::printf("RO-->\n"); }
+			return;
+		}
+		if(DEBUG){ std::printf("RO-->\n"); }
+		return;
+	}
 
-// //<RO>	->	< | = < | > | = > | < > | =  
-// void Parser::RO(Token::Token tk) {
+	// = | =< | =>
+	if(this->tk.id == Token::assignTk) {
+		this->GetToken();
+		if(this->tk.id == Token::lessTk) {
+			this->GetToken();
+			if(DEBUG){ std::printf("RO-->\n"); }
+			return;
+		}
+		else if(this->tk.id == Token::greaterTk) {
+			this->GetToken();
+			if(DEBUG){ std::printf("RO-->\n"); }
+			return;
+		}
+		else {
+			if(DEBUG){ std::printf("RO-->\n"); }
+			return;
+		}
+	}
 
-// 	// < | < >
-// 	if(tk.id == Token::lessTk){
-// 		tk = scanner.getToken();
-// 		if(tk.id == Token::greaterTk){
-// 			tk = scanner.getToken();
-// 			return;
-// 		}
-// 		return;
-// 	}
+	if(this->tk.id == Token::greaterTk) {
+		this->GetToken();
+		if(DEBUG){ std::printf("RO-->\n"); }
+		return;
+	}
 
-// 	// = | =< | =>
-// 	if(tk.id == Token::assignTk) {
-// 		tk = scanner.getToken();
-// 		if(tk.id == Token::lessTk) {
-// 			tk = scanner.getToken();
-// 			return;
-// 		}
-// 		else if(tk.id == Token::greaterTk) {
-// 			tk = scanner.getToken();
-// 			return;
-// 		}
-// 		else {
-// 			return;
-// 		}
-// 	}
+	else {
+		error("RO: Expected RO token");
+		return;
+	}
+}
 
-// 	if(tk.id == Token::greaterTk) {
-// 		tk = scanner.getToken();
-// 		return;
-// 	}
+// <if>	->	cond [ <expr> <RO> <expr> ] <stat>
+void Parser::If() {
+	if(DEBUG)
+		std::printf("-->If\n");
 
-// 	else {
-// 		error("RO: Expected RO token");
-// 		return;
-// 	}
-// }
+	if(this->tk.id == Token::condTk) {
 
-// // <if>	->	cond [ <expr> <RO> <expr> ] <stat>
-// void Parser::If(Token::Token tk) {
+		this->GetToken();
 
-// 	if(tk.id == Token::condTk) {
+		if(this->tk.id == Token::lbracketTk) {
 
-// 		tk = scanner.getToken();
+			this->GetToken();
+			Expr();
+			RO();
+			Expr();
 
-// 		if(tk.id == Token::lbracketTk) {
+			if(this->tk.id == Token::rbracketTk) {
 
-// 			tk = scanner.getToken();
-// 			Expr(tk);
-// 			RO(tk);
-// 			Expr(tk);
+				this->GetToken();
+				Stat();
+				if(DEBUG){ std::printf("If-->\n"); }
+				return;
 
-// 			if(tk.id == Token::rbracketTk) {
+			}
 
-// 				tk = scanner.getToken();
-// 				Stat(tk);
-// 				return;
+			else {
+				error("If: Expected ]");
+				return;
+			}
 
-// 			}
+		}
 
-// 			else {
-// 				error("If: Expected ]");
-// 				return;
-// 			}
+		else {
+			error("If: Expected [");
+			return;
+		}
+	}
 
-// 		}
+	else {
+		error("If: Expected cond");
+		return;
+	}
+	if(DEBUG){ std::printf("If-->\n"); }
+	return;
+}
 
-// 		else {
-// 			error("If: Expected [");
-// 			return;
-// 		}
-// 	}
+// <loop> -> iter [ <expr> <RO> <expr> ] <stat>
+void Parser::Loop() {
+	if(DEBUG)
+		std::printf("-->Loop\n");
 
-// 	else {
-// 		error("If: Expected cond");
-// 		return;
-// 	}
+	if(this->tk.id == Token::iterTk) {
 
-// 	return;
-// }
+		this->GetToken();
 
-// // <loop>	->	iter [ <expr> <RO> <expr> ] <stat>
-// void Parser::Loop(Token::Token tk) {
+		if(this->tk.id == Token::lbracketTk) {
 
-// 	if(tk.id == Token::iterTK) {
+			this->GetToken();
+			Expr();
+			RO();
+			Expr();
 
-// 		tk = scanner.getToken();
+			if(this->tk.id == Token::rbracketTk) {
 
-// 		if(tk.id == Token::lbracketTk) {
+				this->GetToken();
+				Stat();
+				if(DEBUG){ std::printf("Loop-->\n"); }
+				return;
 
-// 			tk = scanner.getToken();
-// 			Expr(tk);
-// 			RO(tk);
-// 			Expr(tk);
+			}
+			else {
+				error("Loop: Expected ]");
+				return;
+			}
+		}
+		else {
+			error("Loop: Expected [");
+			return;
+		}
+	}
+	else {
+		error("Loop: Expected iter");
+		return;
+	}
 
-// 			if(tk.id == Token::rbracketTk) {
+}
 
-// 				tk = scanner.getToken();
-// 				Stat(tk);
-// 				return;
+// <assign>	-> Identifier = <expr>  
+void Parser::Assign() {
+	if(DEBUG)
+		std::printf("-->Assign\n");
 
-// 			}
-// 			else {
-// 				error("Loop: Expected ]");
-// 				return;
-// 			}
-// 		}
-// 		else {
-// 			error("Loop: Expected [");
-// 			return;
-// 		}
-// 	}
-// 	else {
-// 		error("Loop: Expected iter");
-// 		return;
-// 	}
+	if(this->tk.id == Token::identifierTk) {
 
-// }
+		this->GetToken();
 
-// // <assign>	->	Identifier  = <expr>  
-// void Parser::Assign(Token::Token tk) {
+		if(this->tk.id == Token::assignTk) {
 
-// 	if(tk.id == Token::identifierTk) {
+			this->GetToken();
+			Expr();
+			if(DEBUG){ std::printf("Assign-->\n"); }
+			return;
 
-// 		tk = scanner.getToken();
+		}
+		else {
+			error("Assign: Expected =");
+			return;
+		}
+	}
+	error("Assign: Expected Identifier");
+	return;
+}
 
-// 		if(tk.id == Token::assignTk) {
+// <stat>  ->  <in> | <out> | <block> | <if> | <loop> | <assign>
+void Parser::Stat() {
+	if(DEBUG)
+		std::printf("-->Stat\n");
 
-// 			tk = scanner.getToken();
-// 			Expr(tk);
-// 			return;
+	switch(this->tk.id){
+		case(Token::scanTk):
+			In();
+			break;
+		case(Token::printTk):
+			Out();
+			break;
+		case(Token::voidTk):
+			Block();
+			break;
+		case(Token::condTk):
+			If();
+			break;
+		case(Token::iterTk):
+			Loop();
+			break;
+		case(Token::identifierTk):
+			Assign();
+			break;
+		default:
+			error("Stat: No valid stat tokens");
+			break;
+	}
+	if(DEBUG){ std::printf("Stat-->\n"); }
+	return;
+}
 
-// 		}
-// 		else {
-// 			error("Assign: Expected =");
-// 			return;
-// 		}
-// 	}
-// 	error("Assign: Expected Identifier");
-// 	return;
-// }
+// <mStat>	->	empty |  <stat>  ;  <mStat>
+void Parser::MStat() {
+	if(DEBUG)
+		std::printf("-->MSstat\n");
 
-// // <stat>  ->  <in> | <out> | <block> | <if> | <loop> | <assign>
-// void Parser::Stat(Token::Token tk) {
-// 	switch(tk.id){
-// 		case(Token::scanTk):
-// 			In(tk);
-// 			break;
-// 		case(Token::printTk):
-// 			Out(tk);
-// 			break;
-// 		case(Token::voidTk):
-// 			Block(tk);
-// 			break;
-// 		case(Token::condTk):
-// 			If(tk);
-// 			break;
-// 		case(Token::iterTk):
-// 			Loop(tk);
-// 			break;
-// 		case(Token::identifierTk):
-// 			Assign(tk);
-// 			break;
-// 		default:
-// 			error("Stat: No valid stat tokens");
-// 			break;
-// 	}
-// 	return;
-// }
+	if(this->tk.id == Token::scanTk ||
+		this->tk.id == Token::printTk ||
+		this->tk.id == Token::voidTk ||
+		this->tk.id == Token::condTk ||
+		this->tk.id == Token::iterTk ||
+		this->tk.id == Token::identifierTk) {
 
-// void Parser::Stats(Token::Token tk) {
-// 	//stat(tk);
-// 	if(tk.id == Token::semicolonTk){
-// 		tk = scanner.getToken();
-// 		//mStats(tk);
-// 		return;
-// 	}
-// 	else {
-// 		error("Stats: Expected a semicolonTk");
-// 		return;
-// 	}
-// }
+		Stat();
+		if(this->tk.id == Token::semicolonTk){
+			this->GetToken();
+			MStat();
+		}
+		else {
+			error("MStat: Expected ;");
+			return;
+		}
+		if(DEBUG){ std::printf("MStats-->\n"); }
+		return;
+	}
 
-// // <block>	->	void <vars> <stats> return
-// void Parser::Block(Token::Token tk) {
-// 	if(tk.id == Token::voidTk){
-// 		tk = scanner.getToken();
-// 		Vars(tk);
-// 		//stats(tk);
-// 		if(tk.id == Token::returnTk){
-// 			std::printf("exiting block");
-// 			return;
-// 		}
-// 	}
-// 	else{
-// 		error("Block: Expected voidTk");
-// 		return;
-// 	}
-// }
+	// if(this->tk.id == Token::semicolonTk) {
+	// 	this->GetToken();
+	// 	MStat();
+	// 	if(DEBUG){ std::printf("MStats-->\n"); }
+	// 	return;
+	// }
+
+	else {
+		//Stat();
+		if(DEBUG){ std::printf("MStats-->\n"); }
+		return;
+	}
+
+}
+
+// <stats>	->	<stat> ; <mStat>
+void Parser::Stats() {
+	if(DEBUG)
+		std::printf("-->Stats\n");
+
+	switch(this->tk.id){
+		case(Token::scanTk):
+		case(Token::printTk):
+		case(Token::voidTk):
+		case(Token::condTk):
+		case(Token::iterTk):
+		case(Token::identifierTk):
+			Stat();
+			if(this->tk.id == Token::semicolonTk) {
+				this->GetToken();
+				MStat();
+				if(DEBUG){ std::printf("Stats-->\n"); }
+				return;
+			} else {
+				error("Stats: Expected a semicolonTk");
+				return;
+			}
+		default:
+			error("Stats: No valid stat tokens");
+			break;
+	}
+	
+}
+
+// <block>	->	void <vars> <stats> return
+void Parser::Block() {
+	if(DEBUG)
+		std::printf("-->Block\n");
+
+	if(this->tk.id == Token::voidTk){
+		this->GetToken();
+		Vars();
+		Stats();
+		if(this->tk.id == Token::returnTk){
+			this->GetToken();
+			if(DEBUG){ std::printf("Block-->\n"); }
+			return;
+		}
+	}
+	else{
+		error("Block: Expected voidTk");
+		return;
+	}
+}
 
 // <program>	->	<vars> <block>
 void Parser::Program() {
+	if(DEBUG)
+		std::printf("-->Program\n");
+
 	// if(tk.id == (Token::emptyTk || Token::varTk) ) {
 	if( this->tk.id == Token::varTk ) {
-		//Vars(tk);
-		return;
+		Vars();
+		if( this->tk.id == Token::voidTk) {
+			Block();
+			if(DEBUG){ std::printf("Program-->\n"); }
+			return;
+		} else {
+			error("Program: Expected void");
+			return;
+		}
+		return;	
 	}
+
 	else if( this->tk.id == Token::voidTk ) {
-		//block();
+		Block();
+		if(DEBUG){ std::printf("Program-->\n"); }
 		return;
 	}
 
@@ -479,11 +610,24 @@ void Parser::Program() {
 
 void Parser::GetToken() {
 	this->tk = this->scanner.getToken();
+	PrintToken();
+}
+
+void Parser::PrintToken() {
+	// printf("{ %s , ""%s"", %2d }\n",
+	// 		Token::Idname[token.id].c_str(),
+	// 		token.instance.c_str(),
+	// 		token.line);
+	printf("{ %s , ""%s"", %2d }\n",
+		Token::Idname[tk.id].c_str(),
+		tk.instance.c_str(),
+		tk.line);
 }
 
 bool Parser::Parse() {
-	if(DEBUG)
-		std::printf("Parse: Entered Parse\n");
+	if(DEBUG) {
+		std::printf("Parse: ");
+	}
 	this->GetToken();
 	Program();
 	if(this->tk.id == Token::eofTk)

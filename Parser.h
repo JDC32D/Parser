@@ -17,7 +17,7 @@ class Parser {
 	void M();
 	void R();
 	void Stats();
-	void MStats();
+	void MStat();
 	void Stat();
 	void In();
 	void Out();
@@ -27,6 +27,7 @@ class Parser {
 	void RO();
 	void error(std::string msg);
 	void GetToken();
+	void PrintToken();
 
 public:
 	Parser(){ std::printf("Hello World\n"); }
