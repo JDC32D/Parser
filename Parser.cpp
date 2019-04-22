@@ -18,230 +18,310 @@
 // <RO>       ->     < | = <  | >  | = > | < >   |   =            
 // */
 
-// /*
-// #include "ScannerTester.h"
-// #include "Scanner.h"
-
-// void TestScanner(std::FILE* file) {
-
-//         Token::Token token;
-//         //std::printf("[L#] [Instance] | Identifier\n----------------------------\n");
-//         std::printf("{ token, ""instance"", line# }\n");
-//         Scanner scanner(file);
-//         while(1){
-//                 token = scanner.getToken();
-//                 // printf("[%2d] [%8s] | %s \n",
-//                 //      token.line, token.instance.c_str(),
-//                 //      Token::Idname[token.id].c_str() );
-//                 printf("{ %s , ""%s"", %2d }\n",
-//                         Token::Idname[token.id].c_str(),
-//                         token.instance.c_str(),
-//                         token.line);
-//                  switch(token.id){
-//                         case Token::eofTk:
-//                         case Token::errTk:
-//                                 return;
-//                         default:
-//                                 break;
-//                  }
-//         }
-// }
-// */
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <functional>
+#include <sstream>
 #include "Parser.h"
 
-// Token::Token tk;
-// Scanner scanner(file);
-
-const bool DEBUG = 1;
+const bool DEBUG = 0;
 
 void Parser::error(std::string msg){
-	std::printf("%s\nToken: ", msg.c_str());
+	std::printf("ERROR %s\n\tToken: ", msg.c_str());
 	PrintToken();
 	return;
 }
 
+void PrintNodeTokens(Node *node, 
+	int lvl, const std::string& fileName) {
+
+	if(DEBUG)
+		std::printf("%lu", node->Tokens.size());
+
+	std::stringstream out;
+	out << node->Label;
+
+	if(node->Tokens.size() > 0) {
+		out << " Tokens: ";
+		for(unsigned int iter=0 ; iter < node->Tokens.size()-1 ; iter++) {
+			out << node->Tokens[iter].instance << ", ";
+		}
+
+		out << node->Tokens[node->Tokens.size()-1].instance;
+	}
+
+	for(int iter=0 ; iter < lvl ; ++iter)
+		std::printf("	");
+
+	std::printf( "%s\n", out.str().c_str() );
+	std::fstream file;
+	file.open( fileName, std::fstream::app );
+
+	for(int iter=0 ; iter < lvl ; ++iter)
+		file << "\t";
+
+	file << out.str() << "\n";
+	file.close();
+}
+
+void Parser::PreOrder(Node* node, const std::string& file) {
+	std::string fileName = file;
+	std::function<void(Node*,int)> print = [&](Node* node, int lvl){
+		if(!node){
+			return;
+		}
+		PrintNodeTokens(node,lvl,fileName);
+		for(unsigned int iter=0 ; iter < node->Leaves.size() ; iter++) {
+			print(node->Leaves[iter],lvl+1);
+		}
+	};
+	print(node,0);
+}
+
+void Parser::Print(const std::string& file) {
+	this->PreOrder(this->root,file);
+}
+
 // <vars> -> empty | var Identifier : Integer <vars>
-void Parser::Vars(){
+Node* Parser::Vars() {
 	if(DEBUG)
 		std::printf("-->Vars\n");
+	Node* token = this->NewNode("<vars>");
 
 	if(this->tk.id == Token::varTk) { 
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 
 		if(this->tk.id == Token::identifierTk) {
+			//token = this->NewNode("<vars>");
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
 
 			if(this->tk.id == Token::colonTk) {
+				token->Tokens.push_back(this->tk);
 				this->GetToken();
 
 				if(this->tk.id == Token::integerTk) {
+					token->Tokens.push_back(this->tk);
 					this->GetToken();
-					Vars();
-					if(DEBUG){ std::printf("Vars-->\n"); }
-					return;
-				}
-				else {
+					Node* retrn = this->Vars();
+
+					if(retrn != nullptr) {
+						token->Leaves.push_back(retrn);
+						if(DEBUG){ std::printf("Vars-->\n"); }
+						return token;
+					} else
+						if(DEBUG){std::printf("Vars: returned ε\n");}
+				} else 
 					error("Vars: Expected intTk");
-					return;
-				}
-			}
-			else {
+			} else
 				error("Vars: Expected colonTk");
-				return;
-			}
-		}
-		else {
+		} else
 			error("Vars: Expected identifierTk");
-			return;
-		}
-	}
-	if(DEBUG){ std::printf("Vars-->\n"); }
-	return;
+	} 
+	return token;
 }
 
 
 // <in> -> scan Identifier
-void Parser::In() {
+Node* Parser::In() {
 	if(DEBUG)
 		std::printf("-->In\n");
+	Node* token = this->NewNode("<in>");
 
 	if(this->tk.id == Token::scanTk){
-
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 
 		if(this->tk.id == Token::identifierTk){
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
 			if(DEBUG){ std::printf("In-->\n"); }
-			return;
-		}
-
-		else{
+			return token;
+		} else
 			error("In: Expected identifierTk");
-			return;
-		}
 
-	}
-	else{
+	} else
 		error("In: Expected scanTk");
-		return;
-	}
+	return nullptr;
 }
 
 // <R>	->	( <expr> ) | Identifier | Integer
-void Parser::R() {
+Node* Parser::R() {
 	if(DEBUG)
 		std::printf("-->R\n");
 
+	Node* token = NewNode("<R>");
+
+	// <R> -> ( <expr> )
 	if(this->tk.id == Token::lparenTk) {
-
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
-		Expr();
+		Node* leaf = this->Expr();
 
-		if(this->tk.id == Token::rparenTk) {
-			this->GetToken();
-			if(DEBUG){ std::printf("R-->\n"); }
-			return;
+		if( leaf != nullptr ) {
+
+			token->Leaves.push_back(leaf);
+
+			if(this->tk.id == Token::rparenTk) {
+				token->Tokens.push_back(this->tk);
+				this->GetToken();
+				if(DEBUG){ std::printf("R-->\n"); }
+				return token;
+			} else {
+				error("R: Expected )");
+			}
+
+		} else {
+			error("R: Expr returned nullptr");
 		}
-
+		return nullptr;
 	}
 
 	if(this->tk.id == Token::identifierTk) {
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 		if(DEBUG){ std::printf("R-->\n"); }
-		return;
+		return token;
 	}
 
 	if(this->tk.id == Token::integerTk) {
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 		if(DEBUG){ std::printf("R-->\n"); }
-		return;
+		return token;
 	}
 
-	else {
-		error("R: Expected (, identifier, integer");
-		return;
-	}
-
+	error("R: Expected (, identifier, integer");
+	return nullptr;
 }
 
 // <M>	->	% <M> |  <R>
-void Parser::M() {
+Node* Parser::M() {
 	if(DEBUG)
 		std::printf("-->M\n");
 
+	Node* token = NewNode("<M>");
+
 	if(this->tk.id == Token::modTk) {
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
-		M();
-		if(DEBUG){ std::printf("M-->\n"); }
-		return;
+		Node* leaf = this->M();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG)
+				printf("M-->\n");
+			return token;
+		}
+		error("M: returned nullptr");
+		return nullptr;
 	}
 
 	if(this->tk.id == Token::lparenTk ||
 		this->tk.id == Token::identifierTk ||
 		this->tk.id == Token::integerTk) {
 
-		R();
-		if(DEBUG){ std::printf("M-->\n"); }
-		return;
+		Node* leaf = this->R();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG)
+				printf("M-->\n");
+			return token;
+		}
+		error("M: returned nullptr");
+		return nullptr;
 	}
 
-	else {
-		error("M: Expected ( or %");
-		return;
-	}
-
+	error("M: Expected ( or %");
+	return nullptr;
 }
 
 // <N>	->	<M> * <N> | <M>
-void Parser::N() {
+Node* Parser::N() {
 	if(DEBUG)
 		std::printf("-->N\n");
+
+	Node* token = this->NewNode("<N>");
 
 	if(this->tk.id == Token::modTk ||
 		this->tk.id == Token::lparenTk ||
 		this->tk.id == Token::identifierTk ||
 		this->tk.id == Token::integerTk) {
 
-		M();
+		Node* leaf = this->M();
 
 		if(this->tk.id == Token::multTk) {
+
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			N();
-			if(DEBUG){ std::printf("N-->\n"); }
-			return;
+			leaf = this->N();
+
+			if(leaf != nullptr) {
+				token->Leaves.push_back(leaf);
+			} else {
+				error("N: Returned nullptr");
+				return nullptr;
+			}
+
 		}
-		if(DEBUG){ std::printf("N-->\n"); }
-		return;
+
+		if(leaf != nullptr) {
+			if(DEBUG){ std::printf("N-->\n"); }
+			token->Leaves.push_back(leaf);
+			return token;
+		}
+		// if(DEBUG){ std::printf("N-->\n"); }
+		// return token;
+		error("N: returning nullptr");
+		return nullptr;
 	}
 
-	else {
-		error("N: Expected %");
-		return;
-	}
+	error("N: Expected %");
+	return nullptr;
 }
 
 // <A>	->	<N> / <A> | <N>
-void Parser::A() {
+Node* Parser::A() {
 	if(DEBUG)
 		std::printf("-->A\n");
 
+	Node* token = this->NewNode("<A>");
+
+	// <A> -> <N>
 	if(this->tk.id == Token::modTk ||
 		this->tk.id == Token::lparenTk ||
 		this->tk.id == Token::identifierTk ||
-		this->tk.id == Token::integerTk){
+		this->tk.id == Token::integerTk) {
 
-		N();
+		Node* leaf = this->N();
 
+		// <A> -> <N> / <A>
 		if(this->tk.id == Token::bslashTk) {
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			A();
-			if(DEBUG){ std::printf("A-->\n"); }
-			return;
-		}
-		if(DEBUG){ std::printf("A-->\n"); }
-		return;
-	} 
+			leaf = this->A();
 
+			if(leaf != nullptr) {
+				if(DEBUG){ std::printf("A-->\n"); }
+				token->Leaves.push_back(leaf);
+				return token;
+			}
+		}
+
+		if(leaf != nullptr) {
+			if(DEBUG){ std::printf("A-->\n"); }
+			token->Leaves.push_back(leaf);
+			return token;
+		}
+		// if(DEBUG){ std::printf("A-->\n"); }
+		// return token;
+		error("A: Something");
+		return nullptr;
+	} else 
+		error("A: Expected % ( identifier integer");
+	return nullptr;
 }
 
 // <expr>	->	<A> + <expr> | <A> - <expr> | <A>
@@ -249,249 +329,327 @@ void Parser::A() {
 // <N>		->	<M> * <N> | <M>
 // <M>		->	% <M> |  <R>
 // <R>		->	( <expr> ) | Identifier | Integer
-
-void Parser::Expr() {
+Node* Parser::Expr() {
 	if(DEBUG)
 		std::printf("-->Expr\n");
 
-	//if(this->tk.id == (Token::modTk || Token::lparenTk || Token::identifierTk || Token::intTk )) {
-	switch(this->tk.id){
-		case(Token::modTk):
-		case(Token::lparenTk):
-		case(Token::identifierTk):
-		case(Token::integerTk):
-			A();
-			if(this->tk.id == Token::plusTk || this->tk.id == Token::minusTk) {
-				this->GetToken();
-				Expr();
-				if(DEBUG){ std::printf("Expr-->\n"); }
-				return;
-			}
-			return;
-		default:
-			error("Expr: Expected %,(,ident,int");
-			return;
-	}
+	Node* token = this->NewNode("<expr>");
+	Node* leaf = this->A();
+	if(leaf == nullptr)
+		return nullptr;
+	else 
+		token->Leaves.push_back(leaf);
+
+	if(this->tk.id == Token::plusTk || this->tk.id == Token::minusTk) {
+		token->Tokens.push_back(this->tk);
+		this->GetToken();
+		leaf = this->Expr();
+
+		if(leaf != nullptr) {
+			if(DEBUG){ std::printf("Expr-->\n"); }
+			token->Leaves.push_back(leaf);
+			return token;
+		} else 
+			error("Expr: Expr() returned nullptr");
+ 	} 
+
 	if(DEBUG){ std::printf("Expr-->\n"); }
-	return;
+	return token;
 }
 
 // <out> ->  print <expr>
-void Parser::Out() {
+Node* Parser::Out() {
 	if(DEBUG)
 		std::printf("-->Out\n");
+	Node* token = NewNode("<Out>");
+	//Node* leaf;
 
 	if(this->tk.id == Token::printTk){
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
-		Expr();
-		if(DEBUG){ std::printf("Out-->\n"); }
-		return;
-	}
-	else {
+		Node* leaf = this->Expr();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			return token;
+		} else 
+			error("Out: Expr returned nullptr");
+	} else 
 		error("Out: Expected printTk");
-		return;
-	}
-
+	return nullptr;
 }
 
 //<RO>	->	< | = < | > | = > | < > | =  
-void Parser::RO() {
+Node* Parser::RO() {
 	if(DEBUG)
 		std::printf("-->RO\n");
-
-	// < | < >
+	// <
 	if(this->tk.id == Token::lessTk){
+		Node* token = this->NewNode("<RO>");
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
-		if(this->tk.id == Token::greaterTk){
+
+		// < >
+		if(this->tk.id == Token::greaterTk) {
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
 			if(DEBUG){ std::printf("RO-->\n"); }
-			return;
+			return token;
+		} else {
+			if(DEBUG){ std::printf("RO-->\n"); }
+			return token;
 		}
-		if(DEBUG){ std::printf("RO-->\n"); }
-		return;
 	}
 
-	// = | =< | =>
+	// = 
 	if(this->tk.id == Token::assignTk) {
+		Node* token = this->NewNode("<RO>");
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
+
+		// =<
 		if(this->tk.id == Token::lessTk) {
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
 			if(DEBUG){ std::printf("RO-->\n"); }
-			return;
+			return token;
+		} else {
+			if(DEBUG){ std::printf("RO-->\n"); }
+			return token;
 		}
-		else if(this->tk.id == Token::greaterTk) {
+
+		// =>
+		if(this->tk.id == Token::greaterTk) {
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
 			if(DEBUG){ std::printf("RO-->\n"); }
-			return;
-		}
-		else {
+			return token;
+		} else {
 			if(DEBUG){ std::printf("RO-->\n"); }
-			return;
+			return token;
 		}
 	}
 
+	// >
 	if(this->tk.id == Token::greaterTk) {
+		Node* token = this->NewNode("<RO>");
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 		if(DEBUG){ std::printf("RO-->\n"); }
-		return;
+		return token;
 	}
 
-	else {
-		error("RO: Expected RO token");
-		return;
-	}
+	error("RO: Expected < > =");
+	return nullptr;
 }
 
 // <if>	->	cond [ <expr> <RO> <expr> ] <stat>
-void Parser::If() {
+Node* Parser::If() {
 	if(DEBUG)
 		std::printf("-->If\n");
+	Node* token = this->NewNode("<if>");
+	Node* leaf;
 
 	if(this->tk.id == Token::condTk) {
-
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 
 		if(this->tk.id == Token::lbracketTk) {
-
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			Expr();
-			RO();
-			Expr();
+			leaf = this->Expr();
 
-			if(this->tk.id == Token::rbracketTk) {
+			if(leaf != nullptr) {
+				token->Leaves.push_back(leaf);
+				leaf = this->RO();
 
-				this->GetToken();
-				Stat();
-				if(DEBUG){ std::printf("If-->\n"); }
-				return;
+				if(leaf != nullptr) {
+					token->Leaves.push_back(leaf);
+					leaf = this->Expr();
 
-			}
+					if(leaf != nullptr) {
+						token->Leaves.push_back(leaf);
 
-			else {
-				error("If: Expected ]");
-				return;
-			}
+						if(this->tk.id == Token::rbracketTk) {
+							token->Tokens.push_back(this->tk);
+							this->GetToken();
+							leaf = this->Stat();
 
-		}
-
-		else {
+							if(leaf != nullptr) {
+								token->Leaves.push_back(leaf);
+								if(DEBUG){ std::printf("If-->\n"); }
+								return token;
+							} else
+								error("If: Stat() returned nullptr");
+						} else
+							error("If: Expected ]");
+					} else 
+						error("If: Expr() returned nullptr");
+				} else
+					error("If: RO() returned nullptr");
+			} else
+				error("If: Expr() returned nullptr");				
+		} else 
 			error("If: Expected [");
-			return;
-		}
-	}
-
-	else {
+	} else
 		error("If: Expected cond");
-		return;
-	}
-	if(DEBUG){ std::printf("If-->\n"); }
-	return;
+	return nullptr;
 }
 
 // <loop> -> iter [ <expr> <RO> <expr> ] <stat>
-void Parser::Loop() {
+Node* Parser::Loop() {
 	if(DEBUG)
 		std::printf("-->Loop\n");
+	Node* token = this->NewNode("<loop>");
+	Node* leaf;
 
 	if(this->tk.id == Token::iterTk) {
-
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 
 		if(this->tk.id == Token::lbracketTk) {
-
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			Expr();
-			RO();
-			Expr();
+			leaf = this->Expr();
 
-			if(this->tk.id == Token::rbracketTk) {
+			if(leaf != nullptr) {
+				//token = this->NewNode("<loop>");
+				token->Leaves.push_back(leaf);
+				leaf = this->RO();
 
-				this->GetToken();
-				Stat();
-				if(DEBUG){ std::printf("Loop-->\n"); }
-				return;
+				if(leaf != nullptr) {
+					token->Leaves.push_back(leaf);
+					leaf = this->Expr();
 
-			}
-			else {
-				error("Loop: Expected ]");
-				return;
-			}
-		}
-		else {
+					if(leaf != nullptr) {
+						token->Leaves.push_back(leaf);
+
+						if(this->tk.id == Token::rbracketTk) {
+							token->Tokens.push_back(this->tk);
+							this->GetToken();
+							leaf = this->Stat();
+
+							if(leaf != nullptr) {
+								token->Leaves.push_back(leaf);
+								if(DEBUG)
+									std::printf("Loop-->");
+								return token;
+							} else
+								error("Loop: Stat() returned nullptr");
+						} else
+							error("Loop: Expected ]");
+					} else
+						error("Loop: Expr() returned nullptr");
+				} else
+					error("Loop: RO() returned nullptr");
+			} else
+				error("Loop: Expr() returned nullptr");
+		} else
 			error("Loop: Expected [");
-			return;
-		}
-	}
-	else {
+	} else
 		error("Loop: Expected iter");
-		return;
-	}
-
+	return nullptr;
 }
 
 // <assign>	-> Identifier = <expr>  
-void Parser::Assign() {
+Node* Parser::Assign() {
 	if(DEBUG)
 		std::printf("-->Assign\n");
 
+	Node* token = this->NewNode("<assign>");
 	if(this->tk.id == Token::identifierTk) {
-
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
 
 		if(this->tk.id == Token::assignTk) {
-
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			Expr();
-			if(DEBUG){ std::printf("Assign-->\n"); }
-			return;
-
-		}
-		else {
+			Node* leaf = this->Expr();
+			if(leaf != nullptr) {
+				token->Leaves.push_back(leaf);
+				if(DEBUG){ std::printf("Assign-->"); }
+				return token;
+			} else {
+				error("Assign: Expr() returned nullptr;");
+			}
+		} else {
 			error("Assign: Expected =");
-			return;
 		}
+
+	} else {
+		error("Assign: Expected Identifier");
 	}
-	error("Assign: Expected Identifier");
-	return;
+	
+	error("Assign: Returning nullptr");
+	return nullptr;
 }
 
 // <stat>  ->  <in> | <out> | <block> | <if> | <loop> | <assign>
-void Parser::Stat() {
+Node* Parser::Stat() {
 	if(DEBUG)
 		std::printf("-->Stat\n");
+	Node* token = this->NewNode("<stat>");
 
-	switch(this->tk.id){
-		case(Token::scanTk):
-			In();
-			break;
-		case(Token::printTk):
-			Out();
-			break;
-		case(Token::voidTk):
-			Block();
-			break;
-		case(Token::condTk):
-			If();
-			break;
-		case(Token::iterTk):
-			Loop();
-			break;
-		case(Token::identifierTk):
-			Assign();
-			break;
-		default:
-			error("Stat: No valid stat tokens");
-			break;
+	if(this->tk.id == Token::scanTk) {
+		//this->GetToken();
+		Node* leaf = this->In();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG){ std::printf("Stat-->\n"); }
+			return token;
+		}
+	} else if (this->tk.id == Token::printTk) {
+		//this->GetToken();
+		Node* leaf = this->Out();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG){ std::printf("Stat-->\n"); }
+			return token;
+		}
+	} else if (this->tk.id == Token::voidTk) {
+		//this->GetToken();
+		Node* leaf = this->Block();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG){ std::printf("Stat-->\n"); }
+			return token;
+		}
+	} else if (this->tk.id == Token::condTk) {
+		//this->GetToken();
+		Node* leaf = this->If();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG){ std::printf("Stat-->\n"); }
+			return token;
+		}
+	} else if (this->tk.id == Token::iterTk) {
+		//this->GetToken();
+		Node* leaf = this->Loop();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG){ std::printf("Stat-->\n"); }
+			return token;
+		}
+	} else if (this->tk.id == Token::identifierTk) {
+		//this->GetToken();
+		Node* leaf = this->Assign();
+		if(leaf != nullptr) {
+			token->Leaves.push_back(leaf);
+			if(DEBUG){ std::printf("Stat-->\n"); }
+			return token;
+		}
 	}
-	if(DEBUG){ std::printf("Stat-->\n"); }
-	return;
+
+	error("Stat: No valid Stat tokens");
+	return nullptr;
 }
 
 // <mStat>	->	empty |  <stat>  ;  <mStat>
-void Parser::MStat() {
+Node* Parser::MStat() {
 	if(DEBUG)
 		std::printf("-->MSstat\n");
+	Node* token = this->NewNode("<mStat>");
 
+	// <mStat> -> <stat>
 	if(this->tk.id == Token::scanTk ||
 		this->tk.id == Token::printTk ||
 		this->tk.id == Token::voidTk ||
@@ -499,147 +657,177 @@ void Parser::MStat() {
 		this->tk.id == Token::iterTk ||
 		this->tk.id == Token::identifierTk) {
 
-		Stat();
-		if(this->tk.id == Token::semicolonTk){
+		if(this->tk.id == Token::returnTk) {
+			if(DEBUG){ std::printf("MStats: got return tk"); }
+			return nullptr;
+		}
+		
+		Node* leaf = this->Stat();
+
+		if(leaf == nullptr) {
+			error("MStat: Stat returned nullptr");
+			return nullptr;
+		} else {
+			token->Leaves.push_back(leaf);
+			// token->Tokens.push_back(this->tk);
+			// this->GetToken();
+		}
+
+		if(this->tk.id == Token::semicolonTk) {
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			MStat();
+			leaf = this->MStat();
+
+			if(leaf == nullptr) {
+				if(DEBUG){ std::printf("MStat: MStat returned empty"); }
+				return token;
+			}
+			else {
+				token->Leaves.push_back(leaf);
+				return token;
+			}
 		}
-		else {
-			error("MStat: Expected ;");
-			return;
-		}
-		if(DEBUG){ std::printf("MStats-->\n"); }
-		return;
+
 	}
 
-	// if(this->tk.id == Token::semicolonTk) {
-	// 	this->GetToken();
-	// 	MStat();
-	// 	if(DEBUG){ std::printf("MStats-->\n"); }
-	// 	return;
-	// }
-
-	else {
-		//Stat();
-		if(DEBUG){ std::printf("MStats-->\n"); }
-		return;
-	}
+	// MStat can be empty, so not an error
+	return nullptr;
 
 }
 
 // <stats>	->	<stat> ; <mStat>
-void Parser::Stats() {
+Node* Parser::Stats() {
 	if(DEBUG)
 		std::printf("-->Stats\n");
 
-	switch(this->tk.id){
-		case(Token::scanTk):
-		case(Token::printTk):
-		case(Token::voidTk):
-		case(Token::condTk):
-		case(Token::iterTk):
-		case(Token::identifierTk):
-			Stat();
-			if(this->tk.id == Token::semicolonTk) {
-				this->GetToken();
-				MStat();
-				if(DEBUG){ std::printf("Stats-->\n"); }
-				return;
+	Node* token = this->NewNode("<stats>");
+	//Node* leaf;
+	Node* leaf = this->Stat();
+	if(leaf != nullptr) {
+		token->Leaves.push_back(leaf);
+
+		if(tk.id == Token::semicolonTk){
+			token->Tokens.push_back(this->tk);
+			this->GetToken();
+			leaf = this->MStat();
+
+			if(leaf == nullptr) {
+				if(DEBUG){ std::printf("MStats returned ε\n"); }
+				return token;
 			} else {
-				error("Stats: Expected a semicolonTk");
-				return;
+				token->Leaves.push_back(leaf);
+				if(DEBUG){ std::printf("Stats-->\n"); }
+				return token;
 			}
-		default:
-			error("Stats: No valid stat tokens");
-			break;
+		}
 	}
-	
+	error("Stats: Caught nothing and returning null");
+	return nullptr;
 }
 
 // <block>	->	void <vars> <stats> return
-void Parser::Block() {
+Node* Parser::Block() {
 	if(DEBUG)
 		std::printf("-->Block\n");
 
-	if(this->tk.id == Token::voidTk){
+	Node* token = this->NewNode("<block>");
+	Node* leaf;
+
+	if(this->tk.id == Token::voidTk) {
+		token->Tokens.push_back(this->tk);
 		this->GetToken();
-		Vars();
-		Stats();
-		if(this->tk.id == Token::returnTk){
+		leaf = this->Vars();
+
+		if(leaf == nullptr) {
+			if(DEBUG){ printf("Block: Vars() returned ε\n"); }
+		} else 
+			token->Leaves.push_back(leaf);
+
+		if(this->tk.id == Token::returnTk) {
+			token->Tokens.push_back(this->tk);
 			this->GetToken();
-			if(DEBUG){ std::printf("Block-->\n"); }
-			return;
+			if(DEBUG){ printf("Block: Returning token\n"); }
+			return token;
 		}
 	}
-	else{
-		error("Block: Expected voidTk");
-		return;
+
+	leaf = this->Stats();
+	if(leaf != nullptr) {
+		token->Leaves.push_back(leaf);
+
+		if(this->tk.id == Token::returnTk) {
+			token->Tokens.push_back(this->tk);
+			this->GetToken();
+			if(DEBUG){ printf("Block: Returning token\n"); }
+			return token;
+		}
 	}
+	return nullptr;
 }
 
 // <program>	->	<vars> <block>
-void Parser::Program() {
+Node* Parser::Program() {
 	if(DEBUG)
 		std::printf("-->Program\n");
 
-	// if(tk.id == (Token::emptyTk || Token::varTk) ) {
-	if( this->tk.id == Token::varTk ) {
-		Vars();
-		if( this->tk.id == Token::voidTk) {
-			Block();
-			if(DEBUG){ std::printf("Program-->\n"); }
-			return;
-		} else {
-			error("Program: Expected void");
-			return;
+	// <vars>
+	Node* token = this->NewNode("<Program>");
+	if(this->tk.id == Token::varTk) {
+		Node* retrn = this->Vars();
+
+		if(retrn == nullptr) {
+			if(DEBUG){ printf("Vars returned ε.\n"); }
+		} else
+			token->Leaves.push_back(retrn);
+	}
+
+	// <block>
+	if(this->tk.id == Token::voidTk) {
+		Node* retrn = nullptr;
+		retrn = this->Block();
+
+		if(retrn == nullptr)
+			error("Program: returned nullptr");
+		else {
+			token->Leaves.push_back(retrn);
+			if(DEBUG){ printf("Program-->\n"); }
+			return token;
 		}
-		return;	
 	}
 
-	else if( this->tk.id == Token::voidTk ) {
-		Block();
-		if(DEBUG){ std::printf("Program-->\n"); }
-		return;
-	}
-
-	else{
-		error("Program: Expected a varTk or voidTk");
-		return;
-	}
+	error("Program: Expected var or void");
+	return nullptr;
 }
 
 void Parser::GetToken() {
 	this->tk = this->scanner.getToken();
-	PrintToken();
+	if(DEBUG)
+		PrintToken();
 }
 
 void Parser::PrintToken() {
-	// printf("{ %s , ""%s"", %2d }\n",
-	// 		Token::Idname[token.id].c_str(),
-	// 		token.instance.c_str(),
-	// 		token.line);
 	printf("{ %s , ""%s"", %2d }\n",
 		Token::Idname[tk.id].c_str(),
 		tk.instance.c_str(),
 		tk.line);
 }
 
-bool Parser::Parse() {
-	if(DEBUG) {
-		std::printf("Parse: ");
+Node* Parser::NewNode(const std::string& lbl) {
+	Node* token = nullptr;
+	token = new Node(lbl);
+	if(!token) {
+		error("NewNode: Error creating node");
+		return nullptr;
 	}
+	return token;
+}
+
+bool Parser::Parse() {
+	if(DEBUG) 
+		std::printf("Parse: ");
 	this->GetToken();
-	Program();
+	this->root = this->Program();
 	if(this->tk.id == Token::eofTk)
 		return true;
 	return false;
 }
-
-// void Parser() {
-	
-// 	// tk = scanner.getToken();
-
-// 	//program(tk);
-
-// 	return;
-// }

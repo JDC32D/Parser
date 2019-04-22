@@ -2,39 +2,51 @@
 #define PARSER_H
 
 #include "Scanner.h"
+#include <vector>
+
+typedef struct Node {
+	std::string Label;
+	std::vector<Token::Token> Tokens;
+	std::vector<Node*> Leaves;
+	Node(const std::string& lbl):Label(lbl){}
+	Node():Label(""){}
+} Node;
 
 class Parser {
 
 	Scanner scanner;
 	Token::Token tk;
+	Node* root;
 
-	void Program();
-	void Block();
-	void Vars();
-	void Expr();
-	void A();
-	void N();
-	void M();
-	void R();
-	void Stats();
-	void MStat();
-	void Stat();
-	void In();
-	void Out();
-	void If();
-	void Loop();
-	void Assign();
-	void RO();
-	void error(std::string msg);
+	Node* Program();
+	Node* Block();
+	Node* Vars();
+	Node* Expr();
+	Node* A();
+	Node* N();
+	Node* M();
+	Node* R();
+	Node* Stats();
+	Node* MStat();
+	Node* Stat();
+	Node* In();
+	Node* Out();
+	Node* If();
+	Node* Loop();
+	Node* Assign();
+	Node* RO();
+	void error(std::string);
 	void GetToken();
 	void PrintToken();
+	Node* NewNode(const std::string&);
 
 public:
-	Parser(){ std::printf("Hello World\n"); }
+	Parser():root(nullptr){}
 	Parser(std::FILE* fp):scanner(fp){}
 	void GetFile(std::FILE* fp){ this->scanner.GetFile(fp); }
 	bool Parse();
-
+	void PreOrder(Node*, const std::string&);
+	void Print(const std::string&);
 };
 
 #endif

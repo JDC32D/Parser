@@ -2,39 +2,44 @@
 #include "Parser.h"
 
 int main(int argc,char** argv) {
+	std::string fileName;
 	Parser parser;
+	const bool DEBUG = 0;
 
 	if(argc > 1) {
-		std::FILE * file = std::fopen(argv[1],"r");
+		fileName = argv[1];
+		fileName.append(".sp19");
+
+		std::FILE * file = std::fopen(fileName.c_str(),"r");
 		if(!file) {
 			std::printf("Error opening file: \"%s\", exiting\n"
 				,argv[1]);
 			return -1;
 		}
+
 		parser.GetFile(file);
 		if(parser.Parse()) {
-			std::printf("Parser completed execution\n");
+			if(DEBUG)
+				std::printf("Parser completed execution\n");
+			parser.Print(argv[1]);
+		} else {
+			if(DEBUG)
+				std::printf("Parsing could not complete\n");
 		}
-		else 
-			std::printf("Parsing could not complete\n");
 
-		std::fclose(file);
+		std::fclose(file);	
 	} else {
 		parser.GetFile(stdin);
-		if(parser.Parse()) {
-			std::printf("Parser completed execution\n");
+		if(parser.Parse()){
+			if(DEBUG)
+				std::printf("Parser completed execution\n");
+				parser.Print("out");
 		}
 		else {
-			std::printf("Parser could not complete\n");
+			if(DEBUG)
+				std::printf("Parser could not complete\n");
 		}
 	}
-
-	/*
-	Include the scanner
-	Call the parser function
-	Keep calling it until the scanner is out of tokens
-	Parser should ensure that the token matches the grammar rules
-	*/
 
 	return 0;
 }
